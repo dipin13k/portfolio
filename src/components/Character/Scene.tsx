@@ -15,14 +15,17 @@ import { initialFX } from "../utils/initialFX";
 const Scene = () => {
   const canvasDiv = useRef<HTMLDivElement | null>(null);
   const hoverDivRef = useRef<HTMLDivElement>(null);
-  const sceneRef = useRef(new THREE.Scene());
+  const sceneRef = useRef<THREE.Scene | null>(null);
 
   useEffect(() => {
     if (canvasDiv.current) {
-      let rect = canvasDiv.current.getBoundingClientRect();
-      let container = { width: rect.width, height: rect.height };
-      const aspect = container.width / container.height;
+      if (!sceneRef.current) {
+        sceneRef.current = new THREE.Scene();
+      }
       const scene = sceneRef.current;
+      let rect = canvasDiv.current.getBoundingClientRect();
+      let container = { width: rect.width || window.innerWidth, height: rect.height || window.innerHeight };
+      const aspect = container.width / container.height;
 
       const renderer = new THREE.WebGLRenderer({
         alpha: true,
@@ -113,34 +116,43 @@ const Scene = () => {
       };
       document.addEventListener("visibilitychange", onVisibilityChange);
 
-      // Defer model loading so the page can paint first
-      const loadTimeout = setTimeout(() => {
-        loadCharacter().then((gltf) => {
+      let characterObj: THREE.Object3D | null = null;
+      const onResize = () => {
+        if (characterObj) {
+          handleResize(renderer, camera, canvasDiv, characterObj);
+        }
+      };
+
+      // Start the intro animation immediately, don't wait for character
+      initialFX();
+
+      loadCharacter()
+        .then((gltf) => {
           if (gltf) {
             const animations = setAnimations(gltf);
             hoverDivRef.current && animations.hover(gltf, hoverDivRef.current);
             mixer = animations.mixer;
-            let character = gltf.scene;
-            scene.add(character);
-            headBone = character.getObjectByName("spine006") || null;
-            screenLight = character.getObjectByName("screenlight") || null;
+            characterObj = gltf.scene;
+            scene.add(characterObj);
+            headBone = characterObj.getObjectByName("spine006") || null;
+            screenLight = characterObj.getObjectByName("screenlight") || null;
             light.turnOnLights();
             animations.startIntro();
-            initialFX();
-            window.addEventListener("resize", () =>
-              handleResize(renderer, camera, canvasDiv, character)
-            );
+            window.addEventListener("resize", onResize);
             // Only start render loop after model is ready
             animFrameId = requestAnimationFrame(animate);
           }
+        })
+        .catch((err) => {
+          console.error("Failed to load character:", err);
         });
-      }, 200);
+
       return () => {
         clearTimeout(debounce);
-        clearTimeout(loadTimeout);
         cancelAnimationFrame(animFrameId);
         document.removeEventListener("visibilitychange", onVisibilityChange);
         document.removeEventListener("mousemove", onMouseMove);
+        window.removeEventListener("resize", onResize);
         scene.clear();
         renderer.dispose();
         if (canvasDiv.current && renderer.domElement.parentNode === canvasDiv.current) {

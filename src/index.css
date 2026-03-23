@@ -48,16 +48,17 @@ a:hover {
 
 main {
   opacity: 1;
-  transition: 0.3s;
 }
 
 .main-active {
-  opacity: 0;
   animation: fadeIn 1s 1;
   animation-fill-mode: forwards;
 }
 
 @keyframes fadeIn {
+  0% {
+    opacity: 0;
+  }
   100% {
     opacity: 1;
   }
@@ -94,6 +95,7 @@ body {
 
 .split-line {
   overflow: hidden;
+  min-height: 1.2em;
 }
 
 .split-h2 {
@@ -101,6 +103,7 @@ body {
   display: flex;
   white-space: nowrap;
   flex-wrap: nowrap;
+  min-height: 1.2em;
 }
 
 .techstack {
