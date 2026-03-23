@@ -10,18 +10,21 @@ import HoverLinks from "./HoverLinks";
 const SocialIcons = () => {
   useEffect(() => {
     const social = document.getElementById("social") as HTMLElement;
+    if (!social) return;
+
+    const items = social.querySelectorAll("span");
     const cleanups: (() => void)[] = [];
 
-    social.querySelectorAll("span").forEach((item) => {
+    items.forEach((item) => {
       const elem = item as HTMLElement;
       const link = elem.querySelector("a") as HTMLElement;
+      if (!link) return;
 
-      const rect = elem.getBoundingClientRect();
+      let rect = elem.getBoundingClientRect();
       let mouseX = rect.width / 2;
       let mouseY = rect.height / 2;
-      let currentX = 0;
-      let currentY = 0;
-
+      let currentX = mouseX;
+      let currentY = mouseY;
       let rafId: number;
 
       const updatePosition = () => {
@@ -47,9 +50,16 @@ const SocialIcons = () => {
         }
       };
 
-      document.addEventListener("mousemove", onMouseMove);
+      const onResize = () => {
+        rect = elem.getBoundingClientRect();
+      };
+
+      window.addEventListener("mousemove", onMouseMove);
+      window.addEventListener("resize", onResize);
+      
       cleanups.push(() => {
-        document.removeEventListener("mousemove", onMouseMove);
+        window.removeEventListener("mousemove", onMouseMove);
+        window.removeEventListener("resize", onResize);
         cancelAnimationFrame(rafId);
       });
 

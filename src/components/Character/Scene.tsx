@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useMemo } from "react";
 import * as THREE from "three";
 import setCharacter from "./utils/character";
 import setLighting from "./utils/lighting";
@@ -11,11 +11,22 @@ import {
 } from "./utils/mouseUtils";
 import setAnimations from "./utils/animationUtils";
 import { initialFX } from "../utils/initialFX";
+import { debounce } from "../utils/debounce";
 
 const Scene = () => {
   const canvasDiv = useRef<HTMLDivElement | null>(null);
   const hoverDivRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
+
+  let characterObj: THREE.Object3D | null = null;
+
+  const debouncedResize = useMemo(
+    () =>
+      debounce((renderer: THREE.WebGLRenderer, camera: THREE.PerspectiveCamera, canvasDiv: React.RefObject<HTMLDivElement>, character: THREE.Object3D) => {
+        handleResize(renderer, camera, canvasDiv, character);
+      }, 250),
+    []
+  );
 
   useEffect(() => {
     if (canvasDiv.current) {
@@ -59,10 +70,10 @@ const Scene = () => {
       const onMouseMove = (event: MouseEvent) => {
         handleMouseMove(event, (x, y) => (mouse = { x, y }));
       };
-      let debounce: number | undefined;
+      let debounceTimeout: number | undefined;
       const onTouchStart = (event: TouchEvent) => {
         const element = event.target as HTMLElement;
-        debounce = setTimeout(() => {
+        debounceTimeout = setTimeout(() => {
           element?.addEventListener("touchmove", (e: TouchEvent) =>
             handleTouchMove(e, (x, y) => (mouse = { x, y }))
           );
@@ -116,10 +127,9 @@ const Scene = () => {
       };
       document.addEventListener("visibilitychange", onVisibilityChange);
 
-      let characterObj: THREE.Object3D | null = null;
       const onResize = () => {
         if (characterObj) {
-          handleResize(renderer, camera, canvasDiv, characterObj);
+          debouncedResize(renderer, camera, canvasDiv, characterObj);
         }
       };
 
@@ -148,7 +158,7 @@ const Scene = () => {
         });
 
       return () => {
-        clearTimeout(debounce);
+        clearTimeout(debounceTimeout);
         cancelAnimationFrame(animFrameId);
         document.removeEventListener("visibilitychange", onVisibilityChange);
         document.removeEventListener("mousemove", onMouseMove);
@@ -164,7 +174,7 @@ const Scene = () => {
         }
       };
     }
-  }, []);
+  }, [debouncedResize]);
 
   return (
     <>

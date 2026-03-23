@@ -1,14 +1,23 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import HoverLinks from "./HoverLinks";
 import { gsap } from "gsap";
 import { ScrollSmoother } from "gsap/ScrollSmoother";
 import "./styles/Navbar.css";
+import { debounce } from "./utils/debounce";
 
 gsap.registerPlugin(ScrollSmoother, ScrollTrigger);
 export let smoother: ScrollSmoother;
 
 const Navbar = () => {
+  const debouncedResize = useMemo(
+    () =>
+      debounce(() => {
+        ScrollSmoother.refresh(true);
+      }, 250),
+    []
+  );
+
   useEffect(() => {
     smoother = ScrollSmoother.create({
       wrapper: "#smooth-wrapper",
@@ -34,26 +43,22 @@ const Navbar = () => {
       }
     };
 
-    const handleResize = () => {
-      ScrollSmoother.refresh(true);
-    };
-
     links.forEach((elem) => {
       elem.addEventListener("click", handleLinkClick);
     });
 
-    window.addEventListener("resize", handleResize);
+    window.addEventListener("resize", debouncedResize);
 
     return () => {
       links.forEach((elem) => {
         elem.removeEventListener("click", handleLinkClick);
       });
-      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("resize", debouncedResize);
       if (smoother) {
         smoother.kill();
       }
     };
-  }, []);
+  }, [debouncedResize]);
   return (
     <>
       <div className="header">

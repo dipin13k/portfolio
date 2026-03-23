@@ -2,6 +2,37 @@ import * as THREE from "three";
 import { RGBELoader } from "three-stdlib";
 import { gsap } from "gsap";
 
+let cachedEnvTexture: THREE.DataTexture | null = null;
+let loadPromise: Promise<THREE.DataTexture> | null = null;
+
+export const preloadLighting = () => {
+  if (cachedEnvTexture) return Promise.resolve(cachedEnvTexture);
+  if (loadPromise) return loadPromise;
+
+  loadPromise = new Promise((resolve, reject) => {
+    new RGBELoader()
+      .setPath("/models/")
+      .load(
+        "char_enviorment.hdr?v=2",
+        (texture) => {
+          texture.mapping = THREE.EquirectangularReflectionMapping;
+          cachedEnvTexture = texture;
+          resolve(texture);
+        },
+        undefined,
+        (err) => {
+          console.error("Error loading HDR:", err);
+          loadPromise = null;
+          reject(err);
+        }
+      );
+  });
+  return loadPromise;
+};
+
+// Start preloading immediately
+preloadLighting();
+
 const setLighting = (scene: THREE.Scene) => {
   const directionalLight = new THREE.DirectionalLight(0x5eead4, 0);
   directionalLight.intensity = 0;
@@ -18,17 +49,14 @@ const setLighting = (scene: THREE.Scene) => {
   pointLight.castShadow = true;
   scene.add(pointLight);
 
-  new RGBELoader()
-    .setPath("/models/")
-    .load("char_enviorment.hdr?v=2", function (texture) {
-      texture.mapping = THREE.EquirectangularReflectionMapping;
-      scene.environment = texture;
-      scene.environmentIntensity = 0;
-      scene.environmentRotation.set(5.76, 85.85, 1);
-    });
+  preloadLighting().then((texture) => {
+    scene.environment = texture;
+    scene.environmentIntensity = 0;
+    scene.environmentRotation.set(5.76, 85.85, 1);
+  });
 
   function setPointLight(screenLight: any) {
-    if (screenLight.material.opacity > 0.9) {
+    if (screenLight && screenLight.material && screenLight.material.opacity > 0.9) {
       pointLight.intensity = screenLight.material.emissiveIntensity * 20;
     } else {
       pointLight.intensity = 0;
